@@ -190,13 +190,28 @@
     }
 
     async function deleteRes(id) {
-        if (!confirm('Opravdu smazat?')) return;
-        await fetch('/delete', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id })
-        });
+    const password = prompt("Zadejte admin heslo pro smazání:");
+    
+    // Pokud uživatel stornuje nebo nic nezadá, nepokračujeme
+    if (password === null) return;
+
+    const response = await fetch('/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ 
+            id: id, 
+            adminPassword: password 
+        })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+        alert('Smazáno!');
         loadReservations();
+    } else {
+        alert('Chyba: ' + (result.message || 'Špatné heslo nebo jiný problém.'));
+    }
+}
     }
 
     loadReservations();
@@ -204,6 +219,3 @@
 
 </body>
 </html>
-</html>
-
-
