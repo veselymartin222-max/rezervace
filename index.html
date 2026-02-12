@@ -143,13 +143,21 @@
 </div>
 
 <script>
-    // Nastavení minimálního data na dnešek
-    document.getElementById('date').min = new Date().toISOString().split("T")[0];
+    // 1. Nastavení minimálního data na dnešek
+const dateInput = document.getElementById('date');
+if (dateInput) {
+    dateInput.min = new Date().toISOString().split("T")[0];
+}
 
-    async function loadReservations() {
+// 2. Funkce pro načtení rezervací
+async function loadReservations() {
+    try {
         const res = await fetch('/reservations');
         const data = await res.json();
         const list = document.getElementById('reservation-list');
+        
+        if (!list) return;
+        
         list.innerHTML = data.length === 0 ? '<p style="text-align:center">Žádné rezervace</p>' : '';
 
         data.forEach(item => {
@@ -164,16 +172,26 @@
             `;
             list.appendChild(div);
         });
+    } catch (err) {
+        console.error("Chyba při načítání:", err);
+    }
+}
+
+// 3. Funkce pro vytvoření rezervace
+async function createReservation() {
+    const name = document.getElementById('name').value;
+    const date = document.getElementById('date').value;
+    const time_from = document.getElementById('time_from').value;
+    const time_to = document.getElementById('time_to').value;
+
+    if (!name || !date || !time_from || !time_to) {
+        alert("Vyplňte prosím všechna pole.");
+        return;
     }
 
-    async function createReservation() {
-        const payload = {
-            name: document.getElementById('name').value,
-            date: document.getElementById('date').value,
-            time_from: document.getElementById('time_from').value,
-            time_to: document.getElementById('time_to').value
-        };
+    const payload = { name, date, time_from, time_to };
 
+    try {
         const res = await fetch('/reserve', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -184,36 +202,45 @@
         if (result.success) {
             alert('Rezervace uložena!');
             loadReservations();
+            // Vymazat pole po úspěchu
+            document.getElementById('name').value = '';
         } else {
-            alert('Chyba: ' + (result.message || 'Nepodařilo se uložit.'));
+            alert('Chyba: ' + (result.message || 'Tento čas je už obsazený.'));
         }
-    }
-
-    async function deleteRes(id) {
-    const password = prompt("Zadejte admin heslo pro smazání:");
-    
-    // Pokud uživatel stornuje nebo nic nezadá, nepokračujeme
-    if (password === null) return;
-
-    const response = await fetch('/delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ 
-            id: id, 
-            adminPassword: password 
-        })
-    });
-
-    const result = await response.json();
-    if (result.success) {
-        alert('Smazáno!');
-        loadReservations();
-    } else {
-        alert('Chyba: ' + (result.message || 'Špatné heslo nebo jiný problém.'));
+    } catch (err) {
+        alert("Chyba při komunikaci se serverem.");
     }
 }
 
-    loadReservations();
+// 4. Funkce pro smazání rezervace
+async function deleteRes(id) {
+    const password = prompt("Zadejte admin heslo pro smazání:");
+    if (password === null) return;
+
+    try {
+        const response = await fetch('/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                id: id, 
+                adminPassword: password 
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Smazáno!');
+            loadReservations();
+        } else {
+            alert('Chyba: ' + (result.message || 'Špatné heslo.'));
+        }
+    } catch (err) {
+        alert("Chyba při mazání.");
+    }
+}
+
+// Spustit načítání při startu stránky
+loadReservations();
 </script>
 
 </body>
