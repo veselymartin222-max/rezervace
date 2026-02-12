@@ -79,7 +79,43 @@ app.get('/reservations', async (req, res) => {
 
   res.json(data);
 });
+// --- 3. MAZÁNÍ REZERVACÍ ---
+app.post('/delete', async (req, res) => {
+    const { id, adminPassword } = req.body;
 
+    // KONTROLA HESLA
+    if (adminPassword !== "xxx111xxx") {
+        return res.status(401).json({ success: false, message: "Špatné heslo!" });
+    }
+
+    if (!id) {
+        return res.json({ success: false, message: "Chybí ID rezervace." });
+    }
+
+    const { error } = await supabase
+        .from('reservations')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        return res.json({ success: false, error: error.message });
+    }
+
+    // Volitelné: Oznámení na WhatsApp (Twilio)
+    try {
+        if (process.env.TWILIO_FROM) {
+            await client.messages.create({
+                from: process.env.TWILIO_FROM,
+                to: process.env.ADMIN_TO,
+                body: `Rezervace ID ${id} byla smazána.`
+            });
+        }
+    } catch (err) {
+        console.log("Twilio error:", err.message);
+    }
+
+    res.json({ success: true });
+});
 // 3. Spuštění serveru
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
