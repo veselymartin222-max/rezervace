@@ -33,7 +33,7 @@
 <script>
 
 async function loadReservations() {
-  const res = await fetch("http://localhost:3000/reservations");
+  const res = await fetch("/reservations");
   const data = await res.json();
 
   let html = "<ul>";
@@ -63,7 +63,7 @@ document.getElementById("form").onsubmit = async function(e) {
     time_to: document.getElementById("time_to").value
   };
 
-  const res = await fetch("http://localhost:3000/reserve", {
+  const res = await fetch("/reserve", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(data)
@@ -92,7 +92,7 @@ async function deleteReservation(id) {
 
   if (!confirm("Opravdu zrušit tuto rezervaci?")) return;
 
-  const res = await fetch("http://localhost:3000/delete", {
+  const res = await fetch("/delete", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ id })
@@ -113,3 +113,4 @@ async function deleteReservation(id) {
 
 </body>
 </html>
+
