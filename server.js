@@ -7,9 +7,7 @@ const twilio = require('twilio');
 const app = express();
 app.use(cors());
 app.use(express.json());
-
 app.use(express.static(__dirname));
-
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -24,6 +22,7 @@ const client = twilio(
 app.post('/reserve', async (req, res) => {
   const { name, date, time_from, time_to } = req.body;
 
+
   const { data: existing } = await supabase
     .from('reservations')
     .select('*')
@@ -34,34 +33,31 @@ app.post('/reserve', async (req, res) => {
     return res.json({ success: false, message: "Tento čas je už obsazený!" });
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('reservations')
     .insert([
-  {
-    name,
-    date,
-    time_from,
-    time_to,
-    secret_token: Math.random().toString(36).substring(2, 10)
-  }
-]);
- 
+      {
+        name,
+        date,
+        time_from,
+        time_to,
+        secret_token: Math.random().toString(36).substring(2, 10)
+      }
+    ]);
 
   if (error) {
     return res.json({ success: false, error });
   }
 try {
-  await client.messages.create({
-    from: process.env.TWILIO_FROM,
-    to: process.env.ADMIN_TO,
-    body: `Nová rezervace: ${name} ${date} ${time_from}-${time_to}`
-  });
-  console.log("WhatsApp zpráva odeslána");
-} catch (err) {
-  console.log("CHYBA WHATSAPP:", err.message);
-}
-
-    
+    await client.messages.create({
+      from: process.env.TWILIO_FROM,
+      to: process.env.ADMIN_TO,
+      body: `Nová rezervace: ${name} ${date} ${time_from}-${time_to}`
+    });
+    console.log("WhatsApp zpráva odeslána");
+  } catch (err) {
+    console.log("CHYBA WHATSAPP:", err.message);
+  }
 
   res.json({ success: true });
 });
@@ -176,3 +172,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server běží na portu ${PORT}`);
 });
+
