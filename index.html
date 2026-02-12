@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rezervace kurtu</title>
+</head>
+
+<body>
+<h1>Rezervace kurtu</h1>
+
+<form id="form">
+  Jméno:<br>
+  <input id="name" required><br><br>
+
+  Datum:<br>
+  <input id="date" type="date" required><br><br>
+
+  Od:<br>
+  <input id="time_from" type="time" required><br><br>
+
+  Do:<br>
+  <input id="time_to" type="time" required><br><br>
+
+  <button type="submit">Rezervovat</button>
+</form>
+
+<p id="result"></p>
+
+<h2>Obsazené rezervace</h2>
+<div id="list"></div>
+
+
+<script>
+
+async function loadReservations() {
+  const res = await fetch("http://localhost:3000/reservations");
+  const data = await res.json();
+
+  let html = "<ul>";
+
+  for (let r of data) {
+    html += "<li>" +
+      r.date + " " +
+      r.time_from + " - " +
+      r.time_to +
+      " : " + r.name +
+      " <button onclick=\"deleteReservation('" + r.id + "')\">Zrušit</button>" +
+      "</li>";
+  }
+
+  html += "</ul>";
+
+  document.getElementById("list").innerHTML = html;
+}
+
+document.getElementById("form").onsubmit = async function(e) {
+  e.preventDefault();
+
+  const data = {
+    name: document.getElementById("name").value,
+    date: document.getElementById("date").value,
+    time_from: document.getElementById("time_from").value,
+    time_to: document.getElementById("time_to").value
+  };
+
+  const res = await fetch("http://localhost:3000/reserve", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  });
+
+  const text = await res.text();
+
+  try {
+    const json = JSON.parse(text);
+
+    if (json.success) {
+      document.getElementById("result").innerText = "Rezervace úspěšná!";
+      loadReservations();
+    } else {
+      document.getElementById("result").innerText = "Chyba: " + text;
+    }
+
+  } catch (e) {
+    document.getElementById("result").innerText = "Odpověď serveru: " + text;
+  }
+};
+
+// načíst rezervace hned po otevření stránky
+loadReservations();
+async function deleteReservation(id) {
+
+  if (!confirm("Opravdu zrušit tuto rezervaci?")) return;
+
+  const res = await fetch("http://localhost:3000/delete", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ id })
+  });
+
+  const result = await res.json();
+
+  if (result.success) {
+    alert("Rezervace zrušena");
+    loadReservations();
+  } else {
+    alert("Chyba při mazání");
+  }
+}
+
+
+</script>
+
+</body>
+</html>
