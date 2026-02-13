@@ -193,7 +193,7 @@
                 const to = reservation.time_to.substring(0, 5);
                 
                 // Pokud čas není XX:00, připravíme si poznámku o přesném čase
-                const exactTimeNote = (from.endsWith(":00")) ? "" : ` (${from})`;
+                const exactTimeNote = (from.endsWith(":00")) ? "" : ` (od ${from})`;
 
                 div.innerHTML = `
                     <span>⏰ ${timeString}${exactTimeNote}</span>
