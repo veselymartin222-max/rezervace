@@ -111,7 +111,7 @@
 <body>
 
 <div class="container">
-    <h1>📅 Rezervace</h1>
+    <h1>Rezervace Knihovna</h1>
 
     <div class="card">
         <div class="input-group">
@@ -172,8 +172,11 @@
                 
                 // Najít rezervaci v tomto čase
                 const reservation = data.find(r => {
-                    return r.time_from <= timeString && r.time_to > timeString;
-                });
+    const from = r.time_from.slice(0,5);
+    const to = r.time_to.slice(0,5);
+    return from <= t && to > t;
+});
+
 
                 const div = document.createElement('div');
                 div.className = "time-slot " + (reservation ? "busy" : "free");
