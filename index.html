@@ -156,65 +156,71 @@
 
     // ===== NAČTENÍ REZERVACÍ =====
     async function loadReservations() {
-        const selectedDate = dateInput.value;
-        const list = document.getElementById('reservation-list');
-        list.innerHTML = "Načítám...";
+    const selectedDate = dateInput.value;
+    const list = document.getElementById('reservation-list');
+    list.innerHTML = "Načítám...";
 
-        try {
-            // POZOR: Backend musí vracet rezervace pro konkrétní datum
-            const res = await fetch(`/reservations?date=${selectedDate}`);
-            const data = await res.json();
+    try {
+        const res = await fetch(`/reservations?date=${selectedDate}`);
+        const data = await res.json();
+        list.innerHTML = "";
 
-            list.innerHTML = "";
-
-            for (let hour = 6; hour <= 21; hour++) {
-                const timeString = String(hour).padStart(2, '0') + ":00";
+        for (let hour = 6; hour <= 21; hour++) {
+            const timeString = String(hour).padStart(2, '0') + ":00";
+            
+            // Najdeme rezervaci, která zasahuje do této hodiny
+            const reservation = data.find(r => {
+                const from = r.time_from.substring(0, 5);
+                const to = r.time_to.substring(0, 5);
+                const [fH, fM] = from.split(':').map(Number);
+                const [tH, tM] = to.split(':').map(Number);
                 
-                // Najít rezervaci v tomto čase
-         const reservation = data.find(r => {
+                const fromTotal = fH * 60 + fM;
+                const toTotal = tH * 60 + tM;
+                const slotStart = hour * 60;
+                const slotEnd = (hour + 1) * 60;
 
-    const from = r.time_from.substring(0,5);
-    const to = r.time_to.substring(0,5);
+                // Slot je "obsazený", pokud rezervace začíná v této hodině 
+                // nebo v této hodině stále probíhá
+                return fromTotal < slotEnd && toTotal > slotStart;
+            });
 
-    const fromNum = parseInt(from.replace(":", ""));
-    const toNum = parseInt(to.replace(":", ""));
-    const tNum = parseInt(timeString.replace(":", ""));
+            const div = document.createElement('div');
+            div.className = "time-slot " + (reservation ? "busy" : "free");
 
+            if (reservation) {
+                const from = reservation.time_from.substring(0, 5);
+                const to = reservation.time_to.substring(0, 5);
+                
+                // Pokud čas není XX:00, připravíme si poznámku o přesném čase
+                const exactTimeNote = (from.endsWith(":00")) ? "" : ` (${from})`;
 
-    return fromNum <= tNum && toNum > tNum;
-});
-
-
-
-                const div = document.createElement('div');
-                div.className = "time-slot " + (reservation ? "busy" : "free");
-
-                if (reservation) {
-                    div.innerHTML = `
-                        <span>⏰ ${timeString}</span>
-                        <span>👤 ${reservation.name}</span>
-                    `;
-                } else {
-                    if (reservation) {
-    div.innerHTML = `
-        <span>⏰ ${timeString}</span>
-        <span>👤 ${reservation.name}</span>
-        <button onclick="adminDelete('${reservation.id}')" style="width: auto; padding: 5px 10px; margin: 0; font-size: 10px; background: #94a3b8;">Smazat (Admin)</button>
-    `;
-}
-                    div.onclick = () => {
-                        document.getElementById('time_from').value = timeString;
-                        const nextHour = String(hour + 1).padStart(2, '0') + ":00";
-                        document.getElementById('time_to').value = nextHour;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    };
-                }
-                list.appendChild(div);
+                div.innerHTML = `
+                    <span>⏰ ${timeString}${exactTimeNote}</span>
+                    <span>👤 ${reservation.name}</span>
+                `;
+                
+                // Přidáme možnost smazání adminem kliknutím na jméno (elegantnější než tlačítko)
+                div.title = "Klikněte pro admin smazání";
+                div.onclick = () => adminDelete(reservation.id);
+                
+            } else {
+                div.innerHTML = `
+                    <span>⏰ ${timeString}</span>
+                    <span>🔓 Volno</span>
+                `;
+                div.onclick = () => {
+                    document.getElementById('time_from').value = timeString;
+                    document.getElementById('time_to').value = String(hour + 1).padStart(2, '0') + ":00";
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
             }
-        } catch (err) {
-            list.innerHTML = "Nepodařilo se načíst data z backendu.";
+            list.appendChild(div);
         }
+    } catch (err) {
+        list.innerHTML = "Chyba při načítání.";
     }
+}
 
     // ===== VYTVOŘENÍ REZERVACE =====
     async function createReservation() {
