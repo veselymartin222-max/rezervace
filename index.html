@@ -88,6 +88,7 @@
             padding: 12px 0;
             border-bottom: 1px solid #f1f5f9;
         }
+<button onclick="deleteByToken()">Zrušit svou rezervaci</button>
 
         .res-item:last-child { border-bottom: none; }
 
@@ -191,23 +192,27 @@ async function createReservation() {
 
     const payload = { name, date, time_from, time_to };
 
-    try {
-        const res = await fetch('/reserve', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
+   async function deleteByToken() {
+    const token = prompt("Zadejte svůj kód pro zrušení:");
 
-        const result = await res.json();
-        if (result.success) {
-            alert('Rezervace uložena!');
-            loadReservations();
-            // Vymazat pole po úspěchu
-            document.getElementById('name').value = '';
-        } else {
-            alert('Chyba: ' + (result.message || 'Tento čas je už obsazený.'));
-        }
-    } catch (err) {
+    if (!token) return;
+
+    const res = await fetch('/delete-own', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token })
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+        alert("Rezervace zrušena.");
+        loadReservations();
+    } else {
+        alert("Špatný kód.");
+    }
+}
+ catch (err) {
         alert("Chyba při komunikaci se serverem.");
     }
 }
