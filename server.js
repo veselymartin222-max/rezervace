@@ -79,15 +79,16 @@ app.get('/reservations', async (req, res) => {
 app.post('/delete', async (req, res) => {
     const { id, adminPassword } = req.body;
 
-    if (adminPassword !== process.env.ADMIN_PASSWORD) {
+    if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
+        console.log("Nepodařený pokus o admin smazání! Zadáno:", adminPassword);
         return res.status(401).json({ success: false, message: "Špatné heslo!" });
     }
 
     const { error } = await supabase.from('reservations').delete().eq('id', id);
 
-    if (error) return res.json({ success: false, error: error.message });
+    if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true });
-});
+});;
 
 // --- 4. MAZÁNÍ UŽIVATELEM (přes tajný kód/token) ---
 app.post('/delete-own', async (req, res) => {
