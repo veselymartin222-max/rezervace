@@ -1,279 +1,123 @@
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rezervační Systém</title>
-    <style>
-        :root {
-            --primary-color: #2563eb;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --free-color: #dcfce7;
-            --busy-color: #dbeafe;
-            --danger-color: #ef4444;
-        }
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+const twilio = require('twilio');
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname));
 
-        .container {
-            width: 100%;
-            max-width: 500px;
-        }
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_KEY
+);
 
-        h1, h2 { text-align: center; color: var(--primary-color); }
+const client = twilio(
+    process.env.TWILIO_SID,
+    process.env.TWILIO_TOKEN
+);
+console.log("TWILIO FROM:", process.env.TWILIO_FROM);
 
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
+// --- 1. VYTVOŘENÍ REZERVACE ---
+app.post('/reserve', async (req, res) => {
+    const { name, date, time_from, time_to } = req.body;
 
-        /* Časové sloty */
-        .time-slot {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.15s;
-        }
+    // Kontrola překryvu času (logika: začátek < nový_konec AND konec > nový_začátek)
+    const { data: existing, error: searchError } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('date', date)
+        .filter('time_from', 'lt', time_to)
+        .filter('time_to', 'gt', time_from);
 
-        .time-slot:hover { transform: scale(1.01); }
-        .free { background: var(--free-color); }
-        .busy { background: var(--busy-color); cursor: default; }
+    if (existing && existing.length > 0) {
+        return res.json({ success: false, message: "Tento čas je už obsazený!" });
+    }
 
-        /* Formulář */
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
-        
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
+    const token = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-        .time-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
+    const { error: insertError } = await supabase
+        .from('reservations')
+        .insert([{ name, date, time_from, time_to, secret_token: token }]);
 
-        button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            margin-top: 5px;
-        }
+    if (insertError) {
+        return res.json({ success: false, error: insertError.message });
+    }
 
-        button:active { opacity: 0.8; }
-        
-        .secondary-btn {
-            background-color: transparent;
-            color: var(--text-main);
-            border: 1px solid #e2e8f0;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-
-        .delete-btn { background-color: var(--danger-color); }
-
-        @media (max-width: 480px) {
-            body { padding: 10px; }
-            .card { padding: 15px; }
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>Rezervace Knihovna</h1>
-
-    <div class="card">
-        <div class="input-group">
-            <label>Jméno</label>
-            <input type="text" id="name" placeholder="Vaše jméno">
-        </div>
-        
-        <div class="input-group">
-            <label>Datum</label>
-            <input type="date" id="date">
-        </div>
-
-        <div class="time-row">
-            <div class="input-group">
-                <label>Od</label>
-                <input type="time" id="time_from">
-            </div>
-            <div class="input-group">
-                <label>Do</label>
-                <input type="time" id="time_to">
-            </div>
-        </div>
-
-        <button onclick="createReservation()">Vytvořit rezervaci</button>
-        <button class="secondary-btn" onclick="deleteByToken()">Mám kód pro zrušení</button>
-    </div>
-
-    <h2>Přehled slotů</h2>
-    <div id="reservation-list" class="card">
-        </div>
-</div>
-
-<script>
-    // Nastavení dnešního data jako výchozí a minimální
-    const dateInput = document.getElementById('date');
-    const today = new Date().toISOString().split("T")[0];
-    dateInput.min = today;
-    dateInput.value = today;
-
-    // Aktualizovat seznam při změně data
-    dateInput.addEventListener('change', loadReservations);
-
-    // ===== NAČTENÍ REZERVACÍ =====
-    async function loadReservations() {
-    const selectedDate = dateInput.value;
-    const list = document.getElementById('reservation-list');
-    list.innerHTML = "Načítám...";
-
+    // WhatsApp oznámení
     try {
-        const res = await fetch(`/reservations?date=${selectedDate}`);
-        const data = await res.json();
-        list.innerHTML = "";
-
-        for (let hour = 6; hour <= 21; hour++) {
-            const timeString = String(hour).padStart(2, '0') + ":00";
-            
-            // Najdeme rezervaci, která zasahuje do této hodiny
-            const reservation = data.find(r => {
-                const from = r.time_from.substring(0, 5);
-                const to = r.time_to.substring(0, 5);
-                const [fH, fM] = from.split(':').map(Number);
-                const [tH, tM] = to.split(':').map(Number);
-                
-                const fromTotal = fH * 60 + fM;
-                const toTotal = tH * 60 + tM;
-                const slotStart = hour * 60;
-                const slotEnd = (hour + 1) * 60;
-
-                // Slot je "obsazený", pokud rezervace začíná v této hodině 
-                // nebo v této hodině stále probíhá
-                return fromTotal < slotEnd && toTotal > slotStart;
-            });
-
-            const div = document.createElement('div');
-            div.className = "time-slot " + (reservation ? "busy" : "free");
-
-            if (reservation) {
-                const from = reservation.time_from.substring(0, 5);
-                const to = reservation.time_to.substring(0, 5);
-                
-                // Pokud čas není XX:00, připravíme si poznámku o přesném čase
-                const exactTimeNote = (from.endsWith(":00")) ? "" : ` (${from})`;
-
-                div.innerHTML = `
-                    <span>⏰ ${timeString}${exactTimeNote}</span>
-                    <span>👤 ${reservation.name}</span>
-                `;
-                
-                // Přidáme možnost smazání adminem kliknutím na jméno (elegantnější než tlačítko)
-                div.title = "Klikněte pro admin smazání";
-                div.onclick = () => adminDelete(reservation.id);
-                
-            } else {
-                div.innerHTML = `
-                    <span>⏰ ${timeString}</span>
-                    <span>🔓 Volno</span>
-                `;
-                div.onclick = () => {
-                    document.getElementById('time_from').value = timeString;
-                    document.getElementById('time_to').value = String(hour + 1).padStart(2, '0') + ":00";
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                };
-            }
-            list.appendChild(div);
-        }
-    } catch (err) {
-        list.innerHTML = "Chyba při načítání.";
-    }
-}
-
-    // ===== VYTVOŘENÍ REZERVACE =====
-    async function createReservation() {
-        const name = document.getElementById('name').value;
-        const date = document.getElementById('date').value;
-        const time_from = document.getElementById('time_from').value;
-        const time_to = document.getElementById('time_to').value;
-
-        if (!name || !date || !time_from || !time_to) {
-            alert("Vyplňte prosím všechna pole.");
-            return;
-        }
-
-        const res = await fetch('/reserve', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name, date, time_from, time_to })
+        await client.messages.create({
+            from: process.env.TWILIO_FROM, // např. 'whatsapp:+14155238886'
+            to: process.env.ADMIN_TO,     // např. 'whatsapp:+420123456789'
+            body: `✅ Nová rezervace: ${name}\n📅 ${date}\n⏰ ${time_from} - ${time_to}\n🔑 Kód: ${token}`
         });
-
-        const result = await res.json();
-
-        if (result.success) {
-            alert("Rezervace uložena! Váš kód je: " + (result.token || "není k dispozici"));
-            loadReservations();
-        } else {
-            alert(result.message || "Chyba");
-        }
+    } catch (err) {
+        console.log("Twilio Error:", err.message);
     }
 
-    // ===== SMAZÁNÍ PODLE TOKENU =====
-    async function adminDelete(id) {
-    const adminPassword = prompt("Zadejte admin heslo:");
-    if (!adminPassword) return;
+    res.json({ success: true, token: token });
+});
 
-    const res = await fetch('/delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, adminPassword })
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-        alert("Rezervace smazána adminem.");
-        loadReservations();
-    } else {
-        alert(result.message || "Chyba při mazání.");
+// --- 2. ZÍSKÁNÍ REZERVACÍ ---
+app.get('/reservations', async (req, res) => {
+    const { date } = req.query; // Filtrování podle data z frontendu
+    let query = supabase.from('reservations').select('*');
+    
+    if (date) {
+        query = query.eq('date', date);
     }
-}
 
-    // Prvotní načtení
-    loadReservations();
-</script>
+    const { data, error } = await query.order('time_from', { ascending: true });
 
-</body>
-</html>
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// --- 3. MAZÁNÍ ADMINEM (přes ID a heslo) ---
+app.post('/delete', async (req, res) => {
+    const { id, adminPassword } = req.body;
+
+    if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
+        console.log("Nepodařený pokus o admin smazání! Zadáno:", adminPassword);
+        return res.status(401).json({ success: false, message: "Špatné heslo!" });
+    }
+
+    const { error } = await supabase.from('reservations').delete().eq('id', id);
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true });
+});;
+
+// --- 4. MAZÁNÍ UŽIVATELEM (přes tajný kód/token) ---
+app.post('/delete-own', async (req, res) => {
+    let { token } = req.body;
+
+    if (!token) return res.json({ success: false, message: "Chybí kód." });
+
+    // Normalizace tokenu: odstraníme mezery a převedeme na velká písmena
+    token = token.trim().toUpperCase();
+
+    // Pokus o smazání
+    const { data, error, count } = await supabase
+        .from('reservations')
+        .delete({ count: 'exact' }) // Přidáme počítadlo smazaných řádků
+        .eq('secret_token', token)
+        .select();
+
+    if (error) {
+        console.error("Chyba Supabase:", error.message);
+        return res.json({ success: false, error: error.message });
+    }
+    
+    // Kontrola, zda se skutečně něco smazalo (přes data nebo count)
+    if (!data || data.length === 0) {
+        return res.json({ success: false, message: "Neplatný kód! Ujistěte se, že zadáváte kód správně." });
+    }
+
+    res.json({ success: true });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server běží na portu ${PORT}`));
