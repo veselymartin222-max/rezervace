@@ -103,16 +103,16 @@ app.post('/delete', async (req, res) => {
 
     // Volitelné: Oznámení na WhatsApp (Twilio)
     try {
-        if (process.env.TWILIO_FROM) {
-            await client.messages.create({
-                from: process.env.TWILIO_FROM,
-                to: process.env.ADMIN_TO,
-                body: `Rezervace ID ${id} byla smazána.`
-            });
-        }
-    } catch (err) {
-        console.log("Twilio error:", err.message);
-    }
+    await client.messages.create({
+        from: process.env.TWILIO_FROM,
+        to: process.env.ADMIN_TO,
+        body: `Rezervace ID ${id} byla smazána.`
+    });
+    console.log("WhatsApp odeslán");
+} catch (err) {
+    console.log("Twilio error:", err.message);
+}
+
 
     res.json({ success: true });
 });
@@ -121,3 +121,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server běží na portu ${PORT}`);
 });
+
