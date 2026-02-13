@@ -30,6 +30,22 @@
         }
 
         h1, h2 { text-align: center; color: var(--primary-color); }
+.time-slot {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.free {
+    background: #dcfce7;   /* světle zelená */
+}
+
+.busy {
+    background: #dbeafe;   /* světle modrá */
+}
 
         /* Styl kartiček */
         .card {
@@ -179,7 +195,43 @@ async function loadReservations() {
 }
 
 // 3. Funkce pro vytvoření rezervace
-async function createReservation() {
+async function loadReservations() {
+
+    const res = await fetch('/reservations');
+    const data = await res.json();
+
+    const list = document.getElementById('reservation-list');
+    list.innerHTML = "";
+
+    // vytvoření hodin 6–23
+    for (let hour = 6; hour <= 23; hour++) {
+
+        const timeString = String(hour).padStart(2, '0') + ":00";
+
+        // zjistíme jestli je hodina obsazena
+        const reservation = data.find(r => {
+            return r.time_from <= timeString && r.time_to > timeString;
+        });
+
+        const div = document.createElement('div');
+        div.className = "time-slot " + (reservation ? "busy" : "free");
+
+        if (reservation) {
+            div.innerHTML = `
+                <span>⏰ ${timeString}</span>
+                <span>${reservation.name}</span>
+            `;
+        } else {
+            div.innerHTML = `
+                <span>⏰ ${timeString}</span>
+                <span>volno</span>
+            `;
+        }
+
+        list.appendChild(div);
+    }
+}
+
     const name = document.getElementById('name').value;
     const date = document.getElementById('date').value;
     const time_from = document.getElementById('time_from').value;
