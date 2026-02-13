@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rezervační Systém</title>
     <style>
-        /* --- RESPONSIVNÍ DESIGN (CSS) --- */
         :root {
             --primary-color: #2563eb;
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
             --text-main: #1e293b;
+            --free-color: #dcfce7;
+            --busy-color: #dbeafe;
+            --danger-color: #ef4444;
         }
 
         body {
@@ -30,32 +32,7 @@
         }
 
         h1, h2 { text-align: center; color: var(--primary-color); }
-.time-slot {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    border-radius: 8px;
-    font-weight: 500;
-}
-.time-slot {
-    cursor: pointer;
-    transition: transform 0.15s;
-}
 
-.time-slot:hover {
-    transform: scale(1.02);
-}
-
-.free {
-    background: #dcfce7;   /* světle zelená */
-}
-
-.busy {
-    background: #dbeafe;   /* světle modrá */
-}
-
-        /* Styl kartiček */
         .card {
             background: var(--card-bg);
             padding: 20px;
@@ -64,22 +41,32 @@
             margin-bottom: 20px;
         }
 
-        /* Formulář */
-        .input-group { margin-bottom: 15px; }
-        
-        label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
+        /* Časové sloty */
+        .time-slot {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.15s;
         }
 
+        .time-slot:hover { transform: scale(1.01); }
+        .free { background: var(--free-color); }
+        .busy { background: var(--busy-color); cursor: default; }
+
+        /* Formulář */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+        
         input {
             width: 100%;
             padding: 12px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            font-size: 16px; /* Prevence zoomování na iPhonu */
+            font-size: 16px;
             box-sizing: border-box;
         }
 
@@ -100,32 +87,21 @@
             font-weight: bold;
             cursor: pointer;
             transition: opacity 0.2s;
+            margin-top: 5px;
         }
 
         button:active { opacity: 0.8; }
-
-        /* Seznam rezervací */
-        .res-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-<button onclick="deleteByToken()">Zrušit svou rezervaci</button>
-
-        .res-item:last-child { border-bottom: none; }
-
-        .res-details b { color: var(--primary-color); }
-
-        .delete-btn {
-            width: auto;
-            background-color: #ef4444;
-            padding: 8px 12px;
-            font-size: 13px;
+        
+        .secondary-btn {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid #e2e8f0;
+            margin-top: 10px;
+            font-size: 14px;
         }
 
-        /* Mobilní optimalizace */
+        .delete-btn { background-color: var(--danger-color); }
+
         @media (max-width: 480px) {
             body { padding: 10px; }
             .card { padding: 15px; }
@@ -160,152 +136,124 @@
         </div>
 
         <button onclick="createReservation()">Vytvořit rezervaci</button>
+        <button class="secondary-btn" onclick="deleteByToken()">Mám kód pro zrušení</button>
     </div>
 
-    <h2>Přehled</h2>
+    <h2>Přehled slotů</h2>
     <div id="reservation-list" class="card">
         </div>
 </div>
 
 <script>
+    // Nastavení dnešního data jako výchozí a minimální
+    const dateInput = document.getElementById('date');
+    const today = new Date().toISOString().split("T")[0];
+    dateInput.min = today;
+    dateInput.value = today;
 
-// minimální datum = dnes
-const dateInput = document.getElementById('date');
-dateInput.min = new Date().toISOString().split("T")[0];
+    // Aktualizovat seznam při změně data
+    dateInput.addEventListener('change', loadReservations);
 
+    // ===== NAČTENÍ REZERVACÍ =====
+    async function loadReservations() {
+        const selectedDate = dateInput.value;
+        const list = document.getElementById('reservation-list');
+        list.innerHTML = "Načítám...";
 
-// ===== NAČTENÍ REZERVACÍ =====
-async function loadReservations() {
+        try {
+            // POZOR: Backend musí vracet rezervace pro konkrétní datum
+            const res = await fetch(`/reservations?date=${selectedDate}`);
+            const data = await res.json();
 
-    const res = await fetch('/reservations');
-    const data = await res.json();
+            list.innerHTML = "";
 
-    const list = document.getElementById('reservation-list');
-    list.innerHTML = "";
+            for (let hour = 6; hour <= 21; hour++) {
+                const timeString = String(hour).padStart(2, '0') + ":00";
+                
+                // Najít rezervaci v tomto čase
+                const reservation = data.find(r => {
+                    return r.time_from <= timeString && r.time_to > timeString;
+                });
 
-    for (let hour = 6; hour <= 23; hour++) {
+                const div = document.createElement('div');
+                div.className = "time-slot " + (reservation ? "busy" : "free");
 
-        const timeString = String(hour).padStart(2, '0') + ":00";
+                if (reservation) {
+                    div.innerHTML = `
+                        <span>⏰ ${timeString}</span>
+                        <span>👤 ${reservation.name}</span>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <span>⏰ ${timeString}</span>
+                        <span>🔓 Volno</span>
+                    `;
+                    div.onclick = () => {
+                        document.getElementById('time_from').value = timeString;
+                        const nextHour = String(hour + 1).padStart(2, '0') + ":00";
+                        document.getElementById('time_to').value = nextHour;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    };
+                }
+                list.appendChild(div);
+            }
+        } catch (err) {
+            list.innerHTML = "Nepodařilo se načíst data z backendu.";
+        }
+    }
 
-        const reservation = data.find(r => {
-            return r.time_from <= timeString && r.time_to > timeString;
-        });
+    // ===== VYTVOŘENÍ REZERVACE =====
+    async function createReservation() {
+        const name = document.getElementById('name').value;
+        const date = document.getElementById('date').value;
+        const time_from = document.getElementById('time_from').value;
+        const time_to = document.getElementById('time_to').value;
 
-        const div = document.createElement('div');
-        div.className = "time-slot " + (reservation ? "busy" : "free");
-
-        if (reservation) {
-            div.innerHTML = `
-                <span>⏰ ${timeString}</span>
-                <span>${reservation.name}</span>
-            `;
-        } else {
-            div.innerHTML = `
-                <span>⏰ ${timeString}</span>
-                <span>volno</span>
-            `;
-
-            // kliknutí na volný slot
-            div.onclick = () => {
-                document.getElementById('time_from').value = timeString;
-                const nextHour = String(hour + 1).padStart(2, '0') + ":00";
-                document.getElementById('time_to').value = nextHour;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
+        if (!name || !date || !time_from || !time_to) {
+            alert("Vyplňte prosím všechna pole.");
+            return;
         }
 
-        list.appendChild(div);
-    }
-}
+        const res = await fetch('/reserve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name, date, time_from, time_to })
+        });
 
+        const result = await res.json();
 
-// ===== VYTVOŘENÍ REZERVACE =====
-async function createReservation() {
-
-    const name = document.getElementById('name').value;
-    const date = document.getElementById('date').value;
-    const time_from = document.getElementById('time_from').value;
-    const time_to = document.getElementById('time_to').value;
-
-    if (!name || !date || !time_from || !time_to) {
-        alert("Vyplňte prosím všechna pole.");
-        return;
+        if (result.success) {
+            alert("Rezervace uložena! Váš kód je: " + (result.token || "není k dispozici"));
+            loadReservations();
+        } else {
+            alert(result.message || "Chyba");
+        }
     }
 
-    const res = await fetch('/reserve', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name, date, time_from, time_to })
-    });
+    // ===== SMAZÁNÍ PODLE TOKENU =====
+    async function deleteByToken() {
+        const token = prompt("Zadejte svůj kód pro zrušení:");
+        if (!token) return;
 
-    const result = await res.json();
+        const res = await fetch('/delete-own', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ token })
+        });
 
-    if (result.success) {
-        alert("Rezervace uložena!");
-        loadReservations();
-    } else {
-        alert(result.message || "Chyba");
+        const result = await res.json();
+
+        if (result.success) {
+            alert("Rezervace zrušena");
+            loadReservations();
+        } else {
+            alert("Špatný kód");
+        }
     }
-}
 
-
-// ===== SMAZÁNÍ ADMIN =====
-async function deleteRes(id) {
-
-    const password = prompt("Admin heslo:");
-
-    if (!password) return;
-
-    const res = await fetch('/delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            id,
-            adminPassword: password
-        })
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-        alert("Smazáno");
-        loadReservations();
-    } else {
-        alert("Chyba");
-    }
-}
-
-
-// ===== SMAZÁNÍ PODLE TOKENU =====
-async function deleteByToken() {
-
-    const token = prompt("Zadejte svůj kód pro zrušení:");
-
-    if (!token) return;
-
-    const res = await fetch('/delete-own', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ token })
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-        alert("Rezervace zrušena");
-        loadReservations();
-    } else {
-        alert("Špatný kód");
-    }
-}
-
-
-// start
-loadReservations();
-
+    // Prvotní načtení
+    loadReservations();
 </script>
 
-
-</body><button onclick="deleteByToken()">Zrušit svou rezervaci</button>
-
+</body>
 </html>
