@@ -171,11 +171,18 @@
                 const timeString = String(hour).padStart(2, '0') + ":00";
                 
                 // Najít rezervaci v tomto čase
-                const reservation = data.find(r => {
-    const from = r.time_from.slice(0,5);
-    const to = r.time_to.slice(0,5);
-    return from <= t && to > t;
+         const reservation = data.find(r => {
+
+    const from = r.time_from.substring(0,5);
+    const to = r.time_to.substring(0,5);
+
+    const fromNum = parseInt(from.replace(":", ""));
+    const toNum = parseInt(to.replace(":", ""));
+    const tNum = parseInt(t.replace(":", ""));
+
+    return fromNum <= tNum && toNum > tNum;
 });
+
 
 
                 const div = document.createElement('div');
