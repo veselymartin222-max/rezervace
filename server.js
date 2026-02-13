@@ -35,17 +35,19 @@ app.post('/reserve', async (req, res) => {
   }
 
   // Vložení do databáze
-  const { error } = await supabase
-    .from('reservations')
-    .insert([
-      {
-        name,
-        date,
-        time_from,
-        time_to,
-        secret_token: Math.random().toString(36).substring(2, 10)
-      }
-    ]);
+  const token = Math.random().toString(36).substring(2, 10);
+
+const { error } = await supabase
+  .from('reservations')
+  .insert([
+    {
+      name,
+      date,
+      time_from,
+      time_to,
+      secret_token: token
+    }
+  ]);
 
   if (error) {
     return res.json({ success: false, error });
@@ -102,7 +104,7 @@ app.post('/delete', async (req, res) => {
     }
 
     // Volitelné: Oznámení na WhatsApp (Twilio)
-    try {
+  try {
     await client.messages.create({
         from: process.env.TWILIO_FROM,
         to: process.env.ADMIN_TO,
@@ -114,11 +116,10 @@ app.post('/delete', async (req, res) => {
 }
 
 
-    res.json({ success: true });
+    res.json({ success: true,secret_token: token });
 });
 // 3. Spuštění serveru
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server běží na portu ${PORT}`);
 });
-
