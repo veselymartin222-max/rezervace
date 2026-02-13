@@ -178,7 +178,8 @@
 
     const fromNum = parseInt(from.replace(":", ""));
     const toNum = parseInt(to.replace(":", ""));
-    const tNum = parseInt(t.replace(":", ""));
+    const tNum = parseInt(timeString.replace(":", ""));
+
 
     return fromNum <= tNum && toNum > tNum;
 });
