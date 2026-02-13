@@ -38,6 +38,14 @@
     border-radius: 8px;
     font-weight: 500;
 }
+.time-slot {
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.time-slot:hover {
+    transform: scale(1.02);
+}
 
 .free {
     background: #dcfce7;   /* světle zelená */
@@ -186,7 +194,20 @@ async function loadReservations() {
                     <small>📅 ${item.date} | ⏰ ${item.time_from} - ${item.time_to}</small>
                 </div>
                 <button class="delete-btn" onclick="deleteRes('${item.id}')">Smazat</button>
-            `;
+            `;// kliknutí na volný slot
+if (!reservation) {
+    div.onclick = () => {
+        document.getElementById('time_from').value = timeString;
+
+        // automaticky nastavíme +1 hodinu
+        const nextHour = String(hour + 1).padStart(2, '0') + ":00";
+        document.getElementById('time_to').value = nextHour;
+
+        // jemné scrollnutí nahoru na formulář
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+}
+
             list.appendChild(div);
         });
     } catch (err) {
