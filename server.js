@@ -18,6 +18,7 @@ const client = twilio(
     process.env.TWILIO_SID,
     process.env.TWILIO_TOKEN
 );
+console.log("TWILIO FROM:", process.env.TWILIO_FROM);
 
 // --- 1. VYTVOŘENÍ REZERVACE ---
 app.post('/reserve', async (req, res) => {
