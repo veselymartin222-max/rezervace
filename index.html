@@ -195,10 +195,13 @@
                         <span>👤 ${reservation.name}</span>
                     `;
                 } else {
-                    div.innerHTML = `
-                        <span>⏰ ${timeString}</span>
-                        <span>🔓 Volno</span>
-                    `;
+                    if (reservation) {
+    div.innerHTML = `
+        <span>⏰ ${timeString}</span>
+        <span>👤 ${reservation.name}</span>
+        <button onclick="adminDelete('${reservation.id}')" style="width: auto; padding: 5px 10px; margin: 0; font-size: 10px; background: #94a3b8;">Smazat (Admin)</button>
+    `;
+}
                     div.onclick = () => {
                         document.getElementById('time_from').value = timeString;
                         const nextHour = String(hour + 1).padStart(2, '0') + ":00";
@@ -242,25 +245,25 @@
     }
 
     // ===== SMAZÁNÍ PODLE TOKENU =====
-    async function deleteByToken() {
-        const token = prompt("Zadejte svůj kód pro zrušení:");
-        if (!token) return;
+    async function adminDelete(id) {
+    const adminPassword = prompt("Zadejte admin heslo:");
+    if (!adminPassword) return;
 
-        const res = await fetch('/delete-own', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ token })
-        });
+    const res = await fetch('/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id, adminPassword })
+    });
 
-        const result = await res.json();
+    const result = await res.json();
 
-        if (result.success) {
-            alert("Rezervace zrušena");
-            loadReservations();
-        } else {
-            alert("Špatný kód");
-        }
+    if (result.success) {
+        alert("Rezervace smazána adminem.");
+        loadReservations();
+    } else {
+        alert(result.message || "Chyba při mazání.");
     }
+}
 
     // Prvotní načtení
     loadReservations();
