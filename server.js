@@ -89,7 +89,8 @@ app.post('/delete', async (req, res) => {
     if (adminPassword !== "xxx111xxx") {
         return res.status(401).json({ success: false, message: "Špatné heslo!" });
     }
-
+app.post('/delete-own', async (req, res) => {
+    const { token } = req.body;
     if (!id) {
         return res.json({ success: false, message: "Chybí ID rezervace." });
     }
