@@ -1,136 +1,37 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
-const twilio = require('twilio');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(__dirname));
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-);
-
-const client = twilio(
-    process.env.TWILIO_SID,
-    process.env.TWILIO_TOKEN
-);
-
-// --- 1. VYTVOŘENÍ REZERVACE ---
-app.post('/reserve', async (req, res) => {
-    const { name, date, time_from, time_to } = req.body;
-
-    const { data: existing, error: searchError } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('date', date)
-        .filter('time_from', 'lt', time_to)
-        .filter('time_to', 'gt', time_from);
-
-    if (existing && existing.length > 0) {
-        return res.json({ success: false, message: "Tento čas je už obsazený!" });
-    }
-
-    const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-
-    const { error: insertError } = await supabase
-        .from('reservations')
-        .insert([{ name, date, time_from, time_to, secret_token: token }]);
-
-    if (insertError) {
-        return res.json({ success: false, error: insertError.message });
-    }
-
-    try {
-        await client.messages.create({
-            from: process.env.TWILIO_FROM,
-            to: process.env.ADMIN_TO,
-            body: `✅ Nová rezervace: ${name}\n📅 ${date}\n⏰ ${time_from} - ${time_to}\n🔑 Kód: ${token}`
-        });
-    } catch (err) {
-        console.log("Twilio Error:", err.message);
-    }
-
-    res.json({ success: true, token: token });
-});
-
-// --- 2. ZÍSKÁNÍ REZERVACÍ ---
-app.get('/reservations', async (req, res) => {
-    const { date } = req.query;
-    let query = supabase.from('reservations').select('*');
-    
-    if (date) {
-        query = query.eq('date', date);
-    }
-
-    const { data, error } = await query.order('time_from', { ascending: true });
-
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-});
-
-// --- 3. MAZÁNÍ ADMINEM ---
+// --- 3. MAZÁNÍ ADMINEM (Změna na historii) ---
 app.post('/delete', async (req, res) => {
     const { id, adminPassword } = req.body;
-
-    // Normalizace hesel pro jistotu
-    const storedPassword = String(process.env.ADMIN_PASSWORD).trim();
-    const providedPassword = String(adminPassword).trim();
-
-    if (!providedPassword || providedPassword !== storedPassword) {
+    if (adminPassword !== process.env.ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, message: "Špatné heslo!" });
     }
 
-    const { error } = await supabase.from('reservations').delete().eq('id', id);
+    // Místo .delete() použijeme .update()
+    const { error } = await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
 
     if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true });
 });
 
-// --- 4. MAZÁNÍ UŽIVATELEM (Kód/Token) ---
+// --- 4. MAZÁNÍ UŽIVATELEM (Změna na historii) ---
 app.post('/delete-own', async (req, res) => {
     let { token } = req.body;
-
     if (!token) return res.json({ success: false, message: "Chybí kód." });
 
-    // Odstraníme jen mezery, ale NEVYNUCUJEME velká písmena 
-    // (aby se to shodovalo s tím, co už máš v DB)
-    token = token.trim().toUpperCase();
+    token = token.trim();
 
-    
-    console.log("Pokus o smazání tokenem:", token);
-
+    // Místo .delete() použijeme .update()
     const { data, error } = await supabase
         .from('reservations')
-        .delete()
-        .eq('secret_token', token) // Porovná přesně to, co je v DB
+        .update({ status: 'cancelled' })
+        .eq('secret_token', token)
         .select();
 
-    if (error) {
-        console.error("Supabase Error:", error.message);
-        return res.status(500).json({ success: false, error: error.message });
-    }
-    
-    if (!data || data.length === 0) {
-        // Pokud se nepovedlo, zkusíme to ještě jednou v malé verzi (pro jistotu)
-        const { data: retryData } = await supabase
-            .from('reservations')
-            .delete()
-            .eq('secret_token', token.toLowerCase())
-            .select();
-
-        if (!retryData || retryData.length === 0) {
-            console.log("Token nenalezen v DB:", token);
-            return res.json({ success: false, message: "Neplatný kód!" });
-        }
+    if (error || !data || data.length === 0) {
+        return res.json({ success: false, message: "Neplatný kód nebo chyba." });
     }
 
-    console.log("Úspěšně smazáno uživatelem.");
     res.json({ success: true });
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server běží na portu ${PORT}`));
