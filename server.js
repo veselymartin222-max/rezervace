@@ -18,13 +18,11 @@ const client = twilio(
     process.env.TWILIO_SID,
     process.env.TWILIO_TOKEN
 );
-console.log("TWILIO FROM:", process.env.TWILIO_FROM);
 
 // --- 1. VYTVOŘENÍ REZERVACE ---
 app.post('/reserve', async (req, res) => {
     const { name, date, time_from, time_to } = req.body;
 
-    // Kontrola překryvu času (logika: začátek < nový_konec AND konec > nový_začátek)
     const { data: existing, error: searchError } = await supabase
         .from('reservations')
         .select('*')
@@ -46,11 +44,10 @@ app.post('/reserve', async (req, res) => {
         return res.json({ success: false, error: insertError.message });
     }
 
-    // WhatsApp oznámení
     try {
         await client.messages.create({
-            from: process.env.TWILIO_FROM, // např. 'whatsapp:+14155238886'
-            to: process.env.ADMIN_TO,     // např. 'whatsapp:+420123456789'
+            from: process.env.TWILIO_FROM,
+            to: process.env.ADMIN_TO,
             body: `✅ Nová rezervace: ${name}\n📅 ${date}\n⏰ ${time_from} - ${time_to}\n🔑 Kód: ${token}`
         });
     } catch (err) {
@@ -62,7 +59,7 @@ app.post('/reserve', async (req, res) => {
 
 // --- 2. ZÍSKÁNÍ REZERVACÍ ---
 app.get('/reservations', async (req, res) => {
-    const { date } = req.query; // Filtrování podle data z frontendu
+    const { date } = req.query;
     let query = supabase.from('reservations').select('*');
     
     if (date) {
@@ -75,12 +72,15 @@ app.get('/reservations', async (req, res) => {
     res.json(data);
 });
 
-// --- 3. MAZÁNÍ ADMINEM (přes ID a heslo) ---
+// --- 3. MAZÁNÍ ADMINEM ---
 app.post('/delete', async (req, res) => {
     const { id, adminPassword } = req.body;
 
-    if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
-        console.log("Nepodařený pokus o admin smazání! Zadáno:", adminPassword);
+    // Normalizace hesel pro jistotu
+    const storedPassword = String(process.env.ADMIN_PASSWORD).trim();
+    const providedPassword = String(adminPassword).trim();
+
+    if (!providedPassword || providedPassword !== storedPassword) {
         return res.status(401).json({ success: false, message: "Špatné heslo!" });
     }
 
@@ -88,26 +88,47 @@ app.post('/delete', async (req, res) => {
 
     if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true });
-});;
+});
 
-// --- 4. MAZÁNÍ UŽIVATELEM (přes tajný kód/token) ---
+// --- 4. MAZÁNÍ UŽIVATELEM (Kód/Token) ---
 app.post('/delete-own', async (req, res) => {
-    const { token } = req.body;
+    let { token } = req.body;
 
     if (!token) return res.json({ success: false, message: "Chybí kód." });
 
-    const { error, data } = await supabase
+    // Odstraníme jen mezery, ale NEVYNUCUJEME velká písmena 
+    // (aby se to shodovalo s tím, co už máš v DB)
+    token = token.trim().toUpperCase();
+
+    
+    console.log("Pokus o smazání tokenem:", token);
+
+    const { data, error } = await supabase
         .from('reservations')
         .delete()
-        .eq('secret_token', token)
-        .select(); // .select() zajistí, že poznáme, jestli se něco smazalo
+        .eq('secret_token', token) // Porovná přesně to, co je v DB
+        .select();
 
-    if (error) return res.json({ success: false, error: error.message });
+    if (error) {
+        console.error("Supabase Error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
     
-    if (data.length === 0) {
-        return res.json({ success: false, message: "Neplatný kód!" });
+    if (!data || data.length === 0) {
+        // Pokud se nepovedlo, zkusíme to ještě jednou v malé verzi (pro jistotu)
+        const { data: retryData } = await supabase
+            .from('reservations')
+            .delete()
+            .eq('secret_token', token.toLowerCase())
+            .select();
+
+        if (!retryData || retryData.length === 0) {
+            console.log("Token nenalezen v DB:", token);
+            return res.json({ success: false, message: "Neplatný kód!" });
+        }
     }
 
+    console.log("Úspěšně smazáno uživatelem.");
     res.json({ success: true });
 });
 
