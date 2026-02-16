@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rezervační Systém Knihovna</title>
+    <title>Rezervace Knihovna</title>
+
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2232/2232688.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2232/2232688.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
     <style>
         :root {
             --primary-color: #2563eb;
@@ -177,48 +184,43 @@
         } else { alert(result.message); }
     }
 
-// 1. FUNKCE PRO UŽIVATELE (Chce jen ten 4-místný kód)
-async function deleteByToken() {
-    let token = prompt("Zadejte svůj 4-místný kód pro zrušení:");
-    
-    // Pokud uživatel klikne na Storno nebo nic nevyplní
-    if (token === null || token.trim() === "") return;
+    async function deleteByToken() {
+        let token = prompt("Zadejte svůj 4-místný kód pro zrušení:");
+        if (token === null || token.trim() === "") return;
 
-    const res = await fetch('/delete-own', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ token: token.trim() })
-    });
+        const res = await fetch('/delete-own', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ token: token.trim() })
+        });
 
-    const result = await res.json();
-    if (result.success) {
-        alert("Vaše rezervace byla úspěšně zrušena.");
-        loadReservations(); // Obnovit přehled
-    } else {
-        // Tady uvidíme tu chybu, o které jsme mluvili (např. kód nenalezen)
-        alert(result.message);
+        const result = await res.json();
+        if (result.success) {
+            alert("Vaše rezervace byla úspěšně zrušena.");
+            loadReservations();
+        } else {
+            alert(result.message);
+        }
     }
-}
 
-// 2. FUNKCE PRO ADMINA (Ta jediná má chtít heslo!)
-async function adminDelete(id) {
-    const adminPassword = prompt("Zadejte admin heslo pro smazání:");
-    if (!adminPassword) return;
+    async function adminDelete(id) {
+        const adminPassword = prompt("Zadejte admin heslo pro smazání:");
+        if (!adminPassword) return;
 
-    const res = await fetch('/delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, adminPassword })
-    });
+        const res = await fetch('/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id, adminPassword })
+        });
 
-    const result = await res.json();
-    if (result.success) {
-        alert("Smazáno adminem.");
-        loadReservations();
-    } else {
-        alert("Chyba: " + (result.message || "Špatné heslo"));
+        const result = await res.json();
+        if (result.success) {
+            alert("Smazáno adminem.");
+            loadReservations();
+        } else {
+            alert("Chyba: " + (result.message || "Špatné heslo"));
+        }
     }
-}
 
     async function showHistory() {
         const adminPassword = prompt("Admin heslo:");
