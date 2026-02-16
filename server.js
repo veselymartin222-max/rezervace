@@ -95,26 +95,36 @@ app.post('/delete', async (req, res) => {
 // --- 4. MAZÁNÍ UŽIVATELEM (4-místný kód) ---
 app.post('/delete-own', async (req, res) => {
     let { token } = req.body;
-    if (!token) return res.json({ success: false, message: "Chybí kód." });
-
-    // Převedeme na string a odstraníme mezery, pro jistotu
-    const searchToken = token.toString().trim();
-
-    const { data, error } = await supabase
-        .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('secret_token', searchToken) // Hledáme shodu
-        .eq('status', 'active')          // Chceme mazat jen ty aktivní
-        .select();
-
-    if (error) {
-        console.error("Supabase Error:", error.message);
-        return res.json({ success: false, message: "Chyba databáze." });
+    
+    if (!token) {
+        return res.json({ success: false, message: "Chybí kód." });
     }
 
+    // Převedeme na řetězec a zbavíme se mezer i neviditelných znaků
+    const cleanToken = String(token).trim();
+    
+    console.log(`POŽADAVEK NA MAZÁNÍ: Kód z webu: "${cleanToken}"`);
+
+    // Provedeme update
+    const { data, error, count } = await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('secret_token', cleanToken)
+        .eq('status', 'active')
+        .select(); // Vrátí změněné řádky
+
+    if (error) {
+        console.error("Chyba Supabase:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+
+    console.log("Výsledek z databáze (změněno řádků):", data ? data.length : 0);
+
     if (!data || data.length === 0) {
-        // Pokud kód existuje, ale status není 'active', uživatel dostane tuto zprávu
-        return res.json({ success: false, message: "Neplatný kód nebo rezervace již byla zrušena." });
+        return res.json({ 
+            success: false, 
+            message: "Kód nebyl nalezen nebo je rezervace již zrušena. (Zadali jste: " + cleanToken + ")" 
+        });
     }
 
     res.json({ success: true });
