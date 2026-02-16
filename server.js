@@ -53,15 +53,18 @@ app.post('/reserve', async (req, res) => {
         return res.json({ success: false, error: insertError.message });
     }
 
-    try {
-        await client.messages.create({
-            from: process.env.TWILIO_FROM,
-            to: process.env.ADMIN_TO,
-            body: `✅ Nová rezervace: ${name}\n📅 ${date}\n⏰ ${time_from} - ${time_to}\n🔑 Kód pro zrušení: ${token}`
-        });
-    } catch (err) {
-        console.log("Twilio Error:", err.message);
-    }
+    // Úprava v části app.post('/reserve', ...)
+try {
+    const message = await client.messages.create({
+        // Důležité: předpona whatsapp: musí být u obou čísel
+        from: `whatsapp:${process.env.TWILIO_FROM}`, 
+        to: `whatsapp:${process.env.ADMIN_TO}`,
+        body: `✅ *Nová rezervace: ${name}*\n📅 Datum: ${date}\n⏰ Čas: ${time_from} - ${time_to}\n\n🔑 Kód pro zrušení: *${token}*`
+    });
+    console.log("WhatsApp odeslán, SID:", message.sid);
+} catch (err) {
+    console.error("Twilio WhatsApp Chyba:", err.message);
+}
 
     res.json({ success: true, token: token });
 });
