@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rezervační Systém</title>
+    <title>Rezervační Systém Knihovna</title>
     <style>
         :root {
             --primary-color: #2563eb;
@@ -14,93 +14,42 @@
             --busy-color: #dbeafe;
             --danger-color: #ef4444;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-        }
-
+        .container { width: 100%; max-width: 500px; }
         h1, h2 { text-align: center; color: var(--primary-color); }
-
         .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            background: var(--card-bg); padding: 20px; border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px;
         }
-
         .time-slot {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.15s;
+            display: flex; justify-content: space-between; padding: 12px;
+            margin-bottom: 8px; border-radius: 8px; font-weight: 500;
+            cursor: pointer; transition: transform 0.15s;
         }
-
         .time-slot:hover { transform: scale(1.01); }
         .free { background: var(--free-color); }
         .busy { background: var(--busy-color); cursor: default; }
-
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
-        
         input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
+            width: 100%; padding: 12px; border: 1px solid #e2e8f0;
+            border-radius: 8px; font-size: 16px; box-sizing: border-box;
         }
-
-        .time-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
+        .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            margin-top: 5px;
+            width: 100%; padding: 14px; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 8px; font-size: 16px;
+            font-weight: bold; cursor: pointer; margin-top: 5px;
         }
-
-        button:active { opacity: 0.8; }
-        
         .secondary-btn {
-            background-color: transparent;
-            color: var(--text-main);
-            border: 1px solid #e2e8f0;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-
-        @media (max-width: 480px) {
-            body { padding: 10px; }
-            .card { padding: 15px; }
+            background-color: transparent; color: var(--text-main);
+            border: 1px solid #e2e8f0; margin-top: 10px; font-size: 14px;
         }
     </style>
 </head>
@@ -114,12 +63,10 @@
             <label>Jméno</label>
             <input type="text" id="name" placeholder="Vaše jméno">
         </div>
-        
         <div class="input-group">
             <label>Datum</label>
             <input type="date" id="date">
         </div>
-
         <div class="time-row">
             <div class="input-group">
                 <label>Od</label>
@@ -130,7 +77,6 @@
                 <input type="time" id="time_to">
             </div>
         </div>
-
         <button onclick="createReservation()">Vytvořit rezervaci</button>
         <button class="secondary-btn" onclick="deleteByToken()">Mám kód pro zrušení</button>
     </div>
@@ -139,7 +85,8 @@
     <div id="reservation-list" class="card"></div>
 
     <hr style="margin: 40px 0; border: 0; border-top: 1px solid #e2e8f0;">
-    <div id="admin-history-section">
+    
+    <div id="admin-history-section" style="width: 100%;">
         <button class="secondary-btn" onclick="showHistory()">Zobrazit historii (Admin)</button>
         <div id="history-content" style="display:none; margin-top: 20px;" class="card">
             <h3>Kompletní historie</h3>
@@ -165,14 +112,12 @@
     const today = new Date().toISOString().split("T")[0];
     dateInput.min = today;
     dateInput.value = today;
-
     dateInput.addEventListener('change', loadReservations);
 
     async function loadReservations() {
         const selectedDate = dateInput.value;
         const list = document.getElementById('reservation-list');
         list.innerHTML = "Načítám...";
-
         try {
             const res = await fetch(`/reservations?date=${selectedDate}`);
             const data = await res.json();
@@ -180,18 +125,15 @@
 
             for (let hour = 6; hour <= 21; hour++) {
                 const timeString = String(hour).padStart(2, '0') + ":00";
-                
                 const reservation = data.find(r => {
                     const from = r.time_from.substring(0, 5);
                     const to = r.time_to.substring(0, 5);
                     const [fH, fM] = from.split(':').map(Number);
                     const [tH, tM] = to.split(':').map(Number);
-                    
                     const fromTotal = fH * 60 + fM;
                     const toTotal = tH * 60 + tM;
                     const slotStart = hour * 60;
                     const slotEnd = (hour + 1) * 60;
-
                     return fromTotal < slotEnd && toTotal > slotStart;
                 });
 
@@ -200,19 +142,11 @@
 
                 if (reservation) {
                     const from = reservation.time_from.substring(0, 5);
-                    const exactTimeNote = (from.endsWith(":00")) ? "" : ` (od ${from})`;
-
-                    div.innerHTML = `
-                        <span>⏰ ${timeString}${exactTimeNote}</span>
-                        <span>👤 ${reservation.name}</span>
-                    `;
-                    div.title = "Klikněte pro admin smazání";
+                    const note = (from.endsWith(":00")) ? "" : ` (od ${from})`;
+                    div.innerHTML = `<span>⏰ ${timeString}${note}</span><span>👤 ${reservation.name}</span>`;
                     div.onclick = () => adminDelete(reservation.id);
                 } else {
-                    div.innerHTML = `
-                        <span>⏰ ${timeString}</span>
-                        <span>🔓 Volno</span>
-                    `;
+                    div.innerHTML = `<span>⏰ ${timeString}</span><span>🔓 Volno</span>`;
                     div.onclick = () => {
                         document.getElementById('time_from').value = timeString;
                         document.getElementById('time_to').value = String(hour + 1).padStart(2, '0') + ":00";
@@ -221,9 +155,7 @@
                 }
                 list.appendChild(div);
             }
-        } catch (err) {
-            list.innerHTML = "Chyba při načítání.";
-        }
+        } catch (err) { list.innerHTML = "Chyba při načítání."; }
     }
 
     async function createReservation() {
@@ -231,106 +163,69 @@
         const date = document.getElementById('date').value;
         const time_from = document.getElementById('time_from').value;
         const time_to = document.getElementById('time_to').value;
-
-        if (!name || !date || !time_from || !time_to) {
-            alert("Vyplňte prosím všechna pole.");
-            return;
-        }
+        if (!name || !date || !time_from || !time_to) { alert("Vyplňte pole."); return; }
 
         const res = await fetch('/reserve', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ name, date, time_from, time_to })
         });
-
         const result = await res.json();
         if (result.success) {
-            alert("Rezervace uložena! Váš kód je: " + result.token);
+            alert("Uloženo! Kód: " + result.token);
             loadReservations();
-        } else {
-            alert(result.message || "Chyba");
-        }
+        } else { alert(result.message); }
     }
 
-    // PŘIDÁNA CHYBĚJÍCÍ FUNKCE PRO UŽIVATELSKÉ MAZÁNÍ
     async function deleteByToken() {
-    let token = prompt("Zadejte svůj 4-místný kód pro zrušení:");
-    if (!token) return;
-
-    // Pošleme kód na server
-    const res = await fetch('/delete-own', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ token: token.trim() })
-    });
-
-    const result = await res.json();
-    if (result.success) {
-        alert("Vaše rezervace byla úspěšně zrušena.");
-        loadReservations(); // Znovu načteme seznam
-    } else {
-        alert(result.message);
+        let token = prompt("Zadejte 4-místný kód:");
+        if (!token) return;
+        const res = await fetch('/delete-own', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ token: token.trim() })
+        });
+        const result = await res.json();
+        if (result.success) { alert("Zrušeno."); loadReservations(); }
+        else { alert(result.message); }
     }
-}
 
     async function adminDelete(id) {
-        const adminPassword = prompt("Zadejte admin heslo:");
+        const adminPassword = prompt("Admin heslo:");
         if (!adminPassword) return;
-
         const res = await fetch('/delete', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id, adminPassword })
         });
-
         const result = await res.json();
-        if (result.success) {
-            alert("Rezervace smazána adminem.");
-            loadReservations();
-        } else {
-            alert(result.message || "Chyba při mazání.");
-        }
+        if (result.success) { alert("Smazáno."); loadReservations(); }
+        else { alert("Chyba."); }
     }
 
     async function showHistory() {
-        const adminPassword = prompt("Zadejte admin heslo pro zobrazení historie:");
+        const adminPassword = prompt("Admin heslo:");
         if (!adminPassword) return;
-
         const res = await fetch('/history', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ adminPassword })
         });
-
         const result = await res.json();
         if (result.success) {
             const tbody = document.getElementById('history-table-body');
-            const container = document.getElementById('history-content');
             tbody.innerHTML = "";
-
             result.history.forEach(item => {
                 const isCancelled = item.status === 'cancelled';
                 const row = document.createElement('tr');
-                row.style.borderBottom = "1px solid #f1f5f9";
                 row.style.color = isCancelled ? "#94a3b8" : "inherit";
                 row.style.textDecoration = isCancelled ? "line-through" : "none";
-
-                row.innerHTML = `
-                    <td style="padding: 8px;">${item.date}</td>
-                    <td style="padding: 8px;">${item.time_from}-${item.time_to}</td>
-                    <td style="padding: 8px;">${item.name}</td>
-                    <td style="padding: 8px;">${isCancelled ? "Zrušeno" : "Aktivní"}</td>
-                `;
+                row.innerHTML = `<td style="padding:8px">${item.date}</td><td style="padding:8px">${item.time_from}-${item.time_to}</td><td style="padding:8px">${item.name}</td><td style="padding:8px">${isCancelled ? 'Zrušeno' : 'Aktivní'}</td>`;
                 tbody.appendChild(row);
             });
-
-            container.style.display = "block";
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        } else {
-            alert("Špatné heslo!");
-        }
+            document.getElementById('history-content').style.display = "block";
+        } else { alert("Špatné heslo."); }
     }
-
     loadReservations();
 </script>
 </body>
