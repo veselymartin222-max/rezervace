@@ -108,6 +108,23 @@ app.post('/delete-own', async (req, res) => {
 
     res.json({ success: true });
 });
+// --- 5. HISTORIE PRO ADMINA ---
+app.post('/history', async (req, res) => {
+    const { adminPassword } = req.body;
 
+    if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
+        return res.status(401).json({ success: false, message: "Špatné heslo!" });
+    }
+
+    // Vytáhneme vše, seřazené od nejnovějších
+    const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('time_from', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, history: data });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server běží na portu ${PORT}`));
